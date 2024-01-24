@@ -1,0 +1,70 @@
+version: "3.7"
+
+services:
+    # image project
+    app:
+        build:
+            context: docker
+            dockerfile: Dockerfile
+        restart: unless-stopped
+        working_dir: /var/www/
+        volumes:
+            - ./:/var/www
+        depends_on:
+            - redis
+        networks:
+            - laravel
+
+    # nginx
+    nginx:
+        image: nginx:alpine
+        restart: unless-stopped
+        ports:
+            - "80:80"
+            - "443:443"
+        volumes:
+            - ./:/var/www
+            - ./docker/nginx/:/etc/nginx/conf.d/
+            - /etc/letsencrypt:/letsencrypt
+        networks:
+            - laravel
+
+    # db mysql
+    db:
+        # platform: linux/x86_64
+        image: mysql:5.7.35
+        restart: unless-stopped
+        environment:
+            MYSQL_DATABASE: ${DB_DATABASE}
+            MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+            MYSQL_PASSWORD: ${DB_PASSWORD}
+            MYSQL_USER: ${DB_USERNAME}
+        volumes:
+            - ./docker/mysql/dbdata:/var/lib/mysql
+        ports:
+            - "3306:3306"
+        networks:
+            - laravel
+
+    # redis
+    redis:
+        image: redis:latest
+        expose:
+          - 6379
+        networks:
+            - laravel
+          
+
+    supervisor:
+      build:
+        context: docker
+        dockerfile: supervisor.Dockerfile
+      container_name: supervisor
+      volumes:
+        - ./:/var/www
+      networks:
+        - laravel
+
+networks:
+    laravel:
+        driver: bridge
